@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private async void ProcessClick(object sender, RoutedEventArgs e)
     {
         ProcessButton.IsEnabled = false;
+        ProcessingIndicator.Visibility = Visibility.Visible;
         ResultsList.Items.Clear();
         try
         {
@@ -47,6 +48,6 @@ public partial class MainWindow : Window
             StatusText.Text = $"Готово: {succeeded} успешно, {failed} с ошибкой.";
         }
         catch (Exception ex) { StatusText.Text = $"Обработка не запущена: {ex.Message}"; }
-        finally { ProcessButton.IsEnabled = true; }
+        finally { ProcessButton.IsEnabled = true; ProcessingIndicator.Visibility = Visibility.Collapsed; }
     }
 }

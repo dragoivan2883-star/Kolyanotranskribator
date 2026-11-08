@@ -6,6 +6,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AssemblyName>KIT</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="org.k2fsa.sherpa.onnx" Version="2.0.1" />
+  </ItemGroup>
 
 </Project>

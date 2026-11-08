@@ -34,7 +34,9 @@ public sealed class TranscriptionService
             var ffmpeg = Path.Combine(root, "tools", "ffmpeg.exe");
             var whisper = Path.Combine(root, "tools", "whisper-cli.exe");
             var bundledModel = Path.Combine(root, "tools", "ggml-small.bin");
-            foreach (var path in new[] { ffmpeg, whisper, bundledModel })
+            var bundledSegmentation = Path.Combine(root, "tools", "diarization", "sherpa-onnx-pyannote-segmentation-3-0", "model.onnx");
+            var bundledEmbedding = Path.Combine(root, "tools", "diarization", "embedding.onnx");
+            foreach (var path in new[] { ffmpeg, whisper, bundledModel, bundledSegmentation, bundledEmbedding })
                 if (!File.Exists(path)) return new(false, $"Не найден компонент {Path.GetFileName(path)}.");
 
             // The upstream Windows CLI cannot read Cyrillic paths reliably. Stage its inputs in an ASCII path.
@@ -47,6 +49,16 @@ public sealed class TranscriptionService
             {
                 progress?.Report("подготовка модели");
                 await Task.Run(() => File.Copy(bundledModel, model, true));
+            }
+            foreach (var (sourceModel, fileName) in new[]
+            {
+                (bundledSegmentation, "speaker-segmentation.onnx"),
+                (bundledEmbedding, "speaker-embedding.onnx")
+            })
+            {
+                var destination = Path.Combine(workRoot, fileName);
+                if (!File.Exists(destination) || new FileInfo(destination).Length != new FileInfo(sourceModel).Length)
+                    await Task.Run(() => File.Copy(sourceModel, destination, true));
             }
             job = Path.Combine(workRoot, "job-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(job);
@@ -61,11 +73,13 @@ public sealed class TranscriptionService
 
             progress?.Report("распознавание речи");
             var whisperResult = await RunAsync(whisper, "-m", model, "-f", wave, "-l", "auto",
-                "-otxt", "-of", transcriptBase, "-nt");
-            var generated = transcriptBase + ".txt";
+                "-osrt", "-of", transcriptBase, "-nt", "-ml", "100", "-sow");
+            var generated = transcriptBase + ".srt";
             if (whisperResult.ExitCode != 0 || !File.Exists(generated))
                 return new(false, "Распознавание не удалось. Проверьте модель и запись.");
-            var text = (await File.ReadAllTextAsync(generated, Encoding.UTF8)).Trim();
+            progress?.Report("разделение собеседников");
+            var diarization = await Task.Run(() => SpeakerDiarizer.Detect(wave, workRoot));
+            var text = TranscriptFormatter.Format(await File.ReadAllTextAsync(generated, Encoding.UTF8), diarization);
             if (text.Length == 0) return new(false, "В записи не удалось распознать речь.");
 
             var baseName = Path.GetFileNameWithoutExtension(source);
