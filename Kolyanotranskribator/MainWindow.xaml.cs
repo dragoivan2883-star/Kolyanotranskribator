@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     {
         ProcessButton.IsEnabled = false;
         ProcessingIndicator.Visibility = Visibility.Visible;
+        ScannerSweep.Visibility = Visibility.Visible;
         ResultsList.Items.Clear();
         try
         {
@@ -41,13 +42,18 @@ public partial class MainWindow : Window
                 var progress = new Progress<string>(message => StatusText.Text = $"{Path.GetFileName(file)} · {message}");
                 var result = await service.ProcessAsync(file, progress);
                 ResultsList.Items.Add(result.Success
-                    ? $"✓ {Path.GetFileName(file)} → {Path.GetFileName(result.OutputPath)}"
-                    : $"✕ {Path.GetFileName(file)} — {result.Message}");
+                    ? $"Готово: {Path.GetFileName(file)} → {Path.GetFileName(result.OutputPath)}"
+                    : $"Ошибка: {Path.GetFileName(file)} — {result.Message}");
                 if (result.Success) succeeded++; else failed++;
             }
             StatusText.Text = $"Готово: {succeeded} успешно, {failed} с ошибкой.";
         }
         catch (Exception ex) { StatusText.Text = $"Обработка не запущена: {ex.Message}"; }
-        finally { ProcessButton.IsEnabled = true; ProcessingIndicator.Visibility = Visibility.Collapsed; }
+        finally
+        {
+            ProcessButton.IsEnabled = true;
+            ProcessingIndicator.Visibility = Visibility.Collapsed;
+            ScannerSweep.Visibility = Visibility.Collapsed;
+        }
     }
 }
